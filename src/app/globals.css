@@ -1,0 +1,38 @@
+@import "tailwindcss";
+
+@theme {
+  --color-crust: oklch(0.97 0.02 85);
+  --color-crust-deep: oklch(0.93 0.035 80);
+  --color-ink: oklch(0.26 0.03 60);
+  --color-ink-soft: oklch(0.48 0.025 65);
+  --color-box: oklch(0.58 0.14 160);
+  --color-box-deep: oklch(0.45 0.13 162);
+  --color-warn: oklch(0.62 0.17 35);
+  --font-sans: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, sans-serif;
+}
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  background:
+    radial-gradient(120% 60% at 50% 0%, var(--color-crust) 0%, var(--color-crust-deep) 100%);
+  color: var(--color-ink);
+  min-height: 100dvh;
+}
+
+/* The app is used one-handed, standing at an open fridge, so tap targets stay
+   large and nothing depends on hover. */
+@media (prefers-reduced-motion: no-preference) {
+  .rise {
+    animation: rise 0.35s ease-out both;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
