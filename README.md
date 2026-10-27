@@ -110,7 +110,34 @@ catalog rather than over chosen examples.
 
 **Vision.** Set `VISION_PROVIDER=anthropic` and `ANTHROPIC_API_KEY`. Nothing
 else changes; `src/lib/vision/anthropic.ts` already implements the same
-interface the stub does.
+interface the stub does. The scan screen then sends the real photographs —
+downscaled in the browser to 1568px on the long edge, which is as much detail
+as the model uses.
+
+### Measuring whether it actually works
+
+The product rests on one assumption nothing has tested: that a photo of a real
+fridge becomes a usable inventory. The fixtures cannot answer that — the same
+hand wrote them and the prompt. So there is a harness:
+
+```bash
+npm run vision:try -- --slugs                     # the catalog vocabulary
+npm run vision:try -- photos/door.jpg photos/shelf.jpg
+npm run vision:try -- --truth photos/truth.txt photos/*.jpg
+```
+
+Shot types are assigned by position (door, shelf, drawer, pantry), as on the
+scan screen. Without `--truth` it prints what the model found, split the way
+the app would split it: straight into the inventory, held back for the parent
+to confirm, or dropped. With `--truth` — a file of catalog slugs saying what
+is really in those photos — it reports recall and precision, and names every
+miss and every invention.
+
+What to look for: recall below about 70% means scanning is a shortcut rather
+than the main path, and the product should lead with the pantry checklist.
+Inventions matter more than misses: a missed cucumber is a smaller lunchbox,
+an invented one is a plan built on food that is not there. `photos/` is
+gitignored, so your own fridge stays out of the repo.
 
 **Database.** Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 and the app switches from the in-memory store to Postgres automatically. Then:

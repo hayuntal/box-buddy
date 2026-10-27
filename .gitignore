@@ -7,3 +7,6 @@ out/
 next-env.d.ts
 .DS_Store
 supabase/.temp/
+
+# Real fridge photos and the notes next to them stay out of the repo.
+photos/

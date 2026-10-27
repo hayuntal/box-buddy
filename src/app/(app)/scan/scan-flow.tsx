@@ -5,6 +5,7 @@ import { applyScan, runScan } from "@/app/actions";
 import { Button, Card, Chip } from "@/components/ui";
 import type { NormalizedScan } from "@/lib/vision";
 import type { FixtureName } from "@/lib/vision";
+import { downscaleToJpeg, type Shot } from "@/lib/vision/downscale";
 
 const SHOT_LABELS = ["דלת המקרר", "המדפים", "מגירת הירקות", "לחם ומזווה"] as const;
 
@@ -33,25 +34,34 @@ export function ScanFlow({
   fixtures: FixtureName[];
 }) {
   const [pending, startTransition] = useTransition();
-  const [photos, setPhotos] = useState<Record<number, string>>({});
+  const [photos, setPhotos] = useState<Record<number, Shot>>({});
   const [fixture, setFixture] = useState<FixtureName>("full");
   const [scan, setScan] = useState<NormalizedScan | null>(null);
   const [reviewed, setReviewed] = useState<Reviewed[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [applied, setApplied] = useState(false);
 
-  const shotCount = Math.max(1, Object.keys(photos).length);
-
-  const onPick = (index: number, file: File | undefined) => {
+  const onPick = async (index: number, file: File | undefined) => {
     if (!file) return;
-    setPhotos((p) => ({ ...p, [index]: URL.createObjectURL(file) }));
+    try {
+      const shot = await downscaleToJpeg(file);
+      setPhotos((p) => ({ ...p, [index]: shot }));
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "לא הצלחנו לקרוא את התמונה.");
+    }
   };
 
   const start = () => {
     setError(null);
     startTransition(async () => {
       try {
-        const result = await runScan(shotCount, usingStub ? fixture : undefined);
+        const shots = Object.entries(photos).map(([slot, shot]) => ({
+          base64: shot.base64,
+          mediaType: shot.mediaType,
+          slot: Number(slot),
+        }));
+        const result = await runScan(shots, usingStub ? fixture : undefined);
         setScan(result);
         setReviewed([
           ...result.confirmed.map((i) => ({ ...i, keep: true })),
@@ -167,7 +177,7 @@ export function ScanFlow({
               {photos[index] ? (
                 // Object URLs from the camera; next/image adds nothing here.
                 <img
-                  src={photos[index]}
+                  src={photos[index].previewUrl}
                   alt={label}
                   className="h-20 w-full rounded-lg object-cover"
                 />
@@ -215,7 +225,11 @@ export function ScanFlow({
 
       {error ? <p className="text-sm font-semibold text-warn">{error}</p> : null}
 
-      <Button className="w-full" disabled={pending} onClick={start}>
+      <Button
+        className="w-full"
+        disabled={pending || (!usingStub && Object.keys(photos).length === 0)}
+        onClick={start}
+      >
         {pending ? "קוראים את המקרר…" : "קראו לי את המקרר"}
       </Button>
     </div>

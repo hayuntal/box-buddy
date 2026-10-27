@@ -133,24 +133,38 @@ export async function toggleShoppingItem(planId: string, slug: string, checked: 
  * reaches the inventory until they accept it in `applyScan` — a scan is a
  * suggestion, not a write.
  */
-export async function runScan(shots: number, fixture?: FixtureName) {
+/** The photo slots, in the order the scan screen shows them. */
+const SHOT_ORDER = ["door", "shelf", "drawer", "pantry"] as const;
+
+export async function runScan(
+  shots: readonly { base64: string; mediaType: string; slot: number }[],
+  fixture?: FixtureName,
+) {
   const ctx = await requireContext();
-  assertAllowed(ctx, { type: "run_scan", shots });
+  const shotCount = Math.max(1, shots.length);
+  assertAllowed(ctx, { type: "run_scan", shots: shotCount });
 
   const provider = getVisionProvider(fixture);
-  const result = await provider.analyze({
-    images: Array.from({ length: shots }, (_, i) => ({
-      // The stub ignores the bytes; the live provider receives real uploads
-      // from the client via a signed URL before this action is called.
-      base64: "",
-      mediaType: "image/jpeg",
-      shotType: (["door", "shelf", "drawer", "pantry"] as const)[i] ?? "unknown",
-    })),
-  });
+  // The stub ignores the bytes and answers from a fixture; without a photo it
+  // still needs one slot to describe, which is what the fallback is for.
+  const images =
+    shots.length > 0
+      ? shots.map((s) => ({
+          base64: s.base64,
+          mediaType: s.mediaType,
+          shotType: SHOT_ORDER[s.slot] ?? ("unknown" as const),
+        }))
+      : [{ base64: "", mediaType: "image/jpeg", shotType: "unknown" as const }];
+
+  if (provider.name.startsWith("anthropic") && shots.length === 0) {
+    throw new Error("צלמו לפחות תמונה אחת לפני הסריקה.");
+  }
+
+  const result = await provider.analyze({ images });
 
   await ctx.repo.recordScan(ctx.session.householdId, {
     provider: provider.name,
-    shotCount: shots,
+    shotCount,
     rawResult: result,
   });
 
